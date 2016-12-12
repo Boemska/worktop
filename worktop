@@ -1,0 +1,426 @@
+#!/bin/bash  
+#===============================================================================
+#
+#          FILE: worktop
+# 
+#         USAGE: ./worktop <args>
+# 
+#   DESCRIPTION: This was supposed to be a simple shell script for Gaetan of 
+#                communities.sas.com. Great example of weekend hack scope creep.
+#                See http://boem.sk/2hwvU8m for original discussion.
+#
+#       OPTIONS: ./worktop -h prints available options 
+#  REQUIREMENTS: see requiredThings variable on line 126
+#          BUGS: Always, it's a fun game
+#         NOTES: github.com/boemska/worktop 
+#        AUTHOR: Nikola Markovic 
+#  ORGANIZATION: Boemska (boemskats.com)
+#       CREATED: 12/10/2016 10:27
+#      REVISION: v0.1
+#
+#===============================================================================
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software 
+# Foundation, either version 3 of the License, or (at your option) any later 
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT 
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with 
+# this program. If not, see http://www.gnu.org/licenses/.
+#===============================================================================
+
+# set -o nounset                              # Treat unset variables as an error
+
+#-------------------------------------------------------------------------------
+# Colours and stuff for the prettiness later 
+#-------------------------------------------------------------------------------
+Red=$(tput setaf 1)
+Gre=$(tput setaf 2)
+Yel=$(tput setaf 3)
+Bla=$(tput setaf 0)
+BRed=$(tput bold)$(tput setaf 1)
+BGre=$(tput bold)$(tput setaf 2)
+BYel=$(tput bold)$(tput setaf 3)
+BWhi=$(tput bold)$(tput setaf 7)
+BgRed=$(tput setab 1)
+BgGre=$(tput setab 2)
+BgYel=$(tput setab 3)
+BgWhi=$(tput setab 7)
+Invert=$(tput setab 7)$(tput setaf 0)
+RCol=$(tput sgr0)
+CLine=$(tput el)
+CDim=$(tput dim)
+Bce=$(tput bce)
+
+
+#---  FUNCTIONS  ---------------------------------------------------------------
+#          NAME:  startme|finishme
+#   DESCRIPTION:  functions to initialise environment and clean it up after 
+#    PARAMETERS:  start: n/a, finish: $1 is exit code, $2 is what to run b4
+#       RETURNS:  
+#-------------------------------------------------------------------------------
+function startme {
+  tput smcup
+  tput civis
+  tput clear
+}
+
+function finishme {
+  # read -p 'whats going on'
+  # back to reality
+  tput rmcup
+  tput cnorm
+  # run the optional $2 function if you want
+  $2
+  # exit with $1
+  exit $1
+}
+
+
+#---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  printHelp
+#   DESCRIPTION:  A function to print the help text. Simple one.
+#    PARAMETERS:  n/a
+#       RETURNS:  console output
+#-------------------------------------------------------------------------------
+printHelp() {
+  printf "\n\n${Yel}worktop.sh${RCol} - a bash at helping you stay on top of your SAS Work directories.\n"
+  printf "                                Copyright(c) 2016 Nikola Markovic @boemskats\n\n"
+  printf "Disclaimer:  You really shouldn't rely on shell scripts for this kind of thing.\n"
+  printf "             For a more robust cross-platform enterprise monitoring solution\n"
+  printf "             you should consider ${BGre}boemskats.com/esm${RCol}. It's much better. \n\n"
+  printf "Usage [optional args]: \n\n  ${Yel}$(basename "$1") -d <sasworkdir> \n"
+  printf "             [-n <directory sizing interval (seconds)>]\n" 
+  printf "             [-g <alert/highlight limit (K/M/G)>] \n"
+  printf "             [-i <directory where metaindex host file is located>] \n"
+  printf "             [-l <target logfile to write stuff to>]${RCol}\n\n"
+  printf "Example (size every 7 minutes, highlight anything larger than 70GB): \n\n  ${Yel}$(basename "$0") -d /data/saswork -n 420 -l 70\n\n${RCol}"
+}	# ----------  end of function printHelp  ------------
+
+
+#---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  checkEverything
+#   DESCRIPTION:  This checks prereqs and parses up command line params
+#    PARAMETERS:  $@ - everything from command line
+#       RETURNS:  Doesn't exit if everything is ok
+#-------------------------------------------------------------------------------
+checkEverything() {
+  # first off we need bash v4 for some of this stuff 
+  if ((BASH_VERSINFO[0] < 4)); then 
+    echo "Sorry, you need at least bash-4.0 to run this script." 
+    exit 1
+  fi
+
+  # initialise default values for below
+  WORKDIR=.
+  INTERVAL=30
+  WORKLIMIT=1000000 # 1gb default
+  LOGFILELOC=/dev/null
+
+  # commands to check for 
+  requiredThings=("tput" "date" "man" "getopts" "basename" "hostname" "numfmt" 
+    "date" "du" "sort" "readarray" "find" "basename" "cut" "xargs" "read" "echo")
+  
+  # check that the arguments we have are correct and stuff
+  while getopts ":d:n:l:i:g:h" option; do
+    case "${option}" in
+    d) 
+      WORKDIR=${OPTARG};;
+    n) 
+      INTERVAL=${OPTARG};;
+    g) 
+      LIMITARG=${OPTARG}
+      LIMITMED=$(numfmt --from=si ${LIMITARG} 2>&1)
+      if [[ $? > 0 ]]; then
+        printerror "$LIMITMED."
+        printscr "Remember, -g needs SI units. Look at man numfmt maybe."
+        exit 2
+      fi
+      WORKLIMIT=$(( $LIMITMED / 1000 ));;
+    i) 
+      METAFILEDIR=${OPTARG};;
+    l) 
+      LOGFILELOC=${OPTARG};;
+    h) 
+      printHelp 
+      exit 0;;
+    \?) 
+      printerror "Invalid option -$OPTARG. "
+      printscr "\nFor help with this script, type ${Yel}$(basename "$0") -h${RCol}\n"  
+      exit 2;;
+      
+    :)
+      printerror "Option -$OPTARG requires an argument"
+      printscr "\nFor help with this script, type ${Yel}$(basename "$0") -h${RCol}\n"  
+      exit 2;;
+    esac
+  done
+
+  # check existence of our main parameter and verify that it is a valid directory
+    if [ "$WORKDIR" == "" ]; then
+      printerror "Work directory not specified."
+      printscr "\nFor help with this script, type ${Yel}$(basename "$0") -h${RCol}\n"  
+      exit 2
+    fi
+
+    if [ ! -d "$WORKDIR" ]; then
+      printerror "The specified work directory ${Red}$WORKDIR${RCol} does not exist."
+      printscr "\nFor help with this script, type ${Yel}$(basename "$0") -h${RCol}\n"  
+      exit 2
+    fi
+    
+    # now check that all bits we need are there
+    local thingsNotFound=0;
+    for thing in "${requiredThings[@]}"; do
+      command -v $thing >/dev/null 2>&1 || { 
+        printerror "Command ${Yel}${thing}${RCol} not found or unavailable." ;
+        thingsNotFound=$(( $thingsNotFound + 1))
+      }
+    done
+    if [[ $thingsNotFound -ne 0 ]]; then
+      printscr "Aborting."
+      exit 1 
+    fi
+
+    # this can't really go anywhere else i guess
+    NOTQUITELIMIT=$(( $WORKLIMIT / 2 ))
+}	# ----------  end of function checkEverything  ------
+
+
+#---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  resizeFrame
+#   DESCRIPTION:  Function to recalculate terminal size dependent vars
+#                 every time that the size of the terminal is chnaged.
+#    PARAMETERS:  n/a
+#       RETURNS:  
+#          SETS:  tlines, tcolumns, colNpos, colNlen
+#-------------------------------------------------------------------------------
+function resizeFrame {
+  tlines=$(tput lines)
+  tcolumns=$(tput cols)
+  colpad=1
+  col1pos=0
+  col2pos=$(( $col1pos + 8 ))
+  col3pos=$(( $col2pos + 8  ))
+  col4pos=$(( $col3pos + $tcolumns  / 6 ))
+  col5pos=$(( $col4pos + 20 ))
+  col1len=$(( $col2pos - $col1pos - $colpad ))
+  col2len=$(( $col3pos - $col2pos - $colpad ))
+  col3len=$(( $col4pos - $col3pos - $colpad ))
+  col4len=$(( $col5pos - $col4pos - $colpad )) 
+  col5len=$(( $tcolumns - ( $col5pos + 1) - $colpad )) 
+
+  # redraw header and column headers
+  headerrow=3
+  headerbg=$(tput cup ${headerrow} 0)${BgWhi}${Bla}${Bce}${CLine}
+  headertxt="$(tput cup ${headerrow} ${col1pos})  SIZE"
+  headertxt+="$(tput cup ${headerrow} ${col2pos})PID"
+  headertxt+="$(tput cup ${headerrow} ${col3pos})METAUSER"
+  headertxt+="$(tput cup ${headerrow} ${col4pos})HOST"
+  headertxt+="$(tput cup ${headerrow} ${col5pos})TEMPORARY DIRECTORY"
+  headertxt+="${RCol}"
+  dirstoshow=$(( $tlines - $headerrow ))
+  printf "$headerbg"
+  printf "$headertxt"
+  drawtopbit
+}	# ----------  end of function resizeFrame  ----------
+
+
+#---  FUNCTIONS  ---------------------------------------------------------------
+#          NAME:  print[left|middle|right|status|substatus]
+#   DESCRIPTION:  Some utility functions for printing stuff in places
+#    PARAMETERS:  $1 is Message, $2 is Row for l/m/r/sub, BgColor for status
+#-------------------------------------------------------------------------------
+printright() { 
+  message=$1
+  messpos=$(( ${tcolumns} - ${#message} - 2 ))
+  printf "$(tput cup $2 ${messpos}) ${message}" 
+}
+printmiddle() { 
+  message=$1
+  messpos=$(( (${tcolumns} / 2) - (${#message} / 2) - 1 ))
+  printf "$(tput cup $2 ${messpos}) ${message}"
+}
+printleft() { 
+  printf "$(tput cup $2 0)$1"
+}
+printstatus() { 
+  # limit status message to 20 chars
+  local statusmessage=${1:0:20}
+  # clear any previous statii
+  local clearpos=$(( ${tcolumns} - 21 ))
+  printf "$(tput cup 0 $clearpos)$(tput el)" 
+  local messpos=$(( ${tcolumns} - ${#statusmessage} - 1 )) 
+  printf "$(tput cup 0 ${messpos}) ${Bla}${2}${statusmessage}${RCol}"
+}
+printsubstatus() { 
+  # limit substatus message to 30 chars
+  local statusmessage=${1:0:30}
+  # clear any previous statii
+  local clearpos=$(( ${tcolumns} - 31 )) 
+  printf "$(tput cup $2 $clearpos)$(tput el)" 
+  local messpos=$(( ${tcolumns} - ${#statusmessage} - 1 ))
+  printf "$(tput cup $2 ${messpos}) ${statusmessage}${RCol}" 
+}	
+
+
+#---  FUNCTIONS  ---------------------------------------------------------------
+#          NAME:  print[scr|log|error]
+#   DESCRIPTION:  Some more utility functions for printing stuff... zzz 
+#                 scr prints to the screen, 
+#                 log to the log,  
+#                 error sticks a big red error in front and prints to both
+#    PARAMETERS:  $1 is whatever is to be printed
+#-------------------------------------------------------------------------------
+printscr()      { printf "$@\n"; }
+printlog()      { echo -e "$(date +%F,%T%t)$@" >> $LOGFILELOC; }
+printerror()    { printscr "${Red}ERROR:${RCol} $@"; printlog "ERROR: $@"; }
+
+
+#---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  drawtopbit
+#   DESCRIPTION:  Draws the header bits above the fold... the top bits
+#    PARAMETERS:  n/a 
+#-------------------------------------------------------------------------------
+drawtopbit () {
+  printleft "${CLine}" 0
+  printleft "${CLine}" 1
+  printleft "${CLine}" 2
+  printmiddle "WORKtop" 0
+  printmiddle "(kind of like top for SASWORK)" 1
+  printmiddle "©2016 boemskats.com" 2
+  printleft "${BYel}$WORKDIR${RCol} on ${BYel}$(hostname -s)${RCol}"
+  local prettyhard=$(numfmt --to=si --from=si ${WORKLIMIT}K)
+  local prettysoft=$(numfmt --to=si --from=si ${NOTQUITELIMIT}K)
+  printleft "Highlights @ ${Red}${prettyhard}${RCol} and ${Yel}${prettysoft}${RCol} " 1
+  printleft "Hit ${BGre}R${RCol} to update, ${BGre}Q${RCol} to quit" 2 
+}	# ----------  end of function drawtopbit  ----------
+
+
+#---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  calculate
+#   DESCRIPTION:  Do all of the calculationing things, over and over forever
+#                 (runs du, matches dirs, draws on screen)
+#    PARAMETERS:  n/a
+#-------------------------------------------------------------------------------
+function calculate {
+    printlog "Starting periodic sizing..."
+  # offset=1
+  # keep doing this for ever and ever
+  while true ; do
+    # variable cleardown and reinit
+    unset rowShade col1vals col2vals col3vals col4vals col5vals timermsg
+    declare -a rowShade col1vals col2vals col3vals col4vals col5vals
+    timerstart=$(date +%s%3N)
+    printstatus "sizing directory" "${BgRed}"
+
+    # basically the entire script right here  
+    readarray -t works < <(du -k --max-depth=0 $WORKDIR/*/ | sort -n -r)
+    
+    timerend=$(date +%s%3N)
+    sizetime=$(( $timerend - $timerstart ))
+    timermsg="${sizetime}ms to read the disk"
+    printsubstatus "$timermsg" 1
+    timerstart=$(date +%s%3N)
+    printstatus "calculating" "${BgYel}"
+
+    # load any metaindexes that may exist
+    unset lookuphash
+    declare -A lookuphash
+    if [ $(find $METAFILEDIR/workmeta* 2>/dev/null | wc -l) -gt 0 ]; then 
+      for metafile in $METAFILEDIR/workmeta*; do
+        readarray raw < $metafile
+        fileshort=$(basename $metafile)
+        nodename=${fileshort:9:99}
+        for sesh in "${raw[@]}"; do
+          line=( $sesh )
+          thispid=${line[0]}
+          thisuser=${line[1]}
+          lookuphash[${nodename}_${thispid}]="${thisuser}"
+        done
+      done
+    fi
+
+    # go through the results and parse them up
+    for (( CNTR=0; CNTR<${#works[@]} && CNTR<$dirstoshow; CNTR+=1 )); do
+      thisrow=$(( $CNTR + headerrow + 1 ))
+      thisSize=$(echo ${works[$CNTR]} | cut -d ' ' -f 1)
+      thisPrettySize=$(numfmt --to=si --from=si --padding=6 ${thisSize}K)
+      thisDir=$(echo ${works[$CNTR]} | cut -d ' ' -f 2 | xargs basename)
+      # only do this for legit saswork formatted dirs so that bash can dehex
+      local dirsub="${thisDir:0:8}"
+      if [[ "${dirsub}" == "SAS_work" || "${dirsub}" == "SAS_util" ]] ; then 
+        thisHex=$(echo "${thisDir}" | cut -d "_" -f 2 | cut -b 10-)
+        thisHost=$(echo "${thisDir}" | cut -d "_" -f 3)  
+        thisPid=$(( 16#${thisHex} )) 
+        echo "${thisHost}_${thisPid}" >> thisdebug
+        # check meta user lookup hash
+	if [ ${lookuphash[${thisHost}_${thisPid}]+bla} ] ; then
+	  thisUser=${lookuphash[${thisHost}_${thisPid}]}
+        else 
+          thisUser="-"
+	fi
+      else
+        thisHex="-"
+        thisHost="-"  
+        thisPid="-"
+        thisUser="-"
+      fi
+      # apply highlighting
+      if [[ ${thisSize} -ge $WORKLIMIT ]] ; then
+        rowShade[$CNTR]="${Red}"
+      elif [[ ${thisSize} -ge $NOTQUITELIMIT ]] ; then
+        rowShade[$CNTR]="${Yel}"
+      else
+        rowShade[$CNTR]="${RCol}"
+      fi
+
+      col1vals[$CNTR]="$(tput cup ${thisrow} ${col1pos})${thisPrettySize:0:${col1len}}"
+      col2vals[$CNTR]="$(tput cup ${thisrow} ${col2pos})${thisPid:0:${col2len}}"
+      col3vals[$CNTR]="$(tput cup ${thisrow} ${col3pos})${thisUser:0:${col3len}}"
+      col4vals[$CNTR]="$(tput cup ${thisrow} ${col4pos})${thisHost:0:${col4len}}"
+      col5vals[$CNTR]="$(tput cup ${thisrow} ${col5pos})${CDim}${thisDir:0:${col5len}}"
+    done
+
+    timerend=$(date +%s%3N)
+    theresttime=$(( $timerend - $timerstart ))
+    timermsg="${theresttime}ms to do the rest"
+    printsubstatus "$timermsg" 2
+    printlog "Sized in ${sizetime}ms, matched in ${theresttime}ms"
+    for (( CNTR=0; CNTR<${#works[@]} && CNTR<$dirstoshow; CNTR+=1 )); do
+      # read -p "${rowShade[$CNTR]}For ${CNTR} this"
+      printf "${rowShade[$CNTR]}${col1vals[$CNTR]}${CLine}${col2vals[$CNTR]}${col3vals[$CNTR]}${col4vals[$CNTR]}${col5vals[$CNTR]}${RCol}"
+    done
+    nextupdate=$INTERVAL
+    while [ $nextupdate -gt 0 ]; do
+      printstatus "Updating in ${nextupdate}s" "${BgGre}"
+      read -rsn1 -t 1 keyaction
+      if [ "$keyaction" == "r" -o "$keyaction" == "R" ]; then
+        nextupdate=1;
+      elif [ "$keyaction" == "q" -o "$keyaction" == "Q" ]; then
+        finishme 0
+      fi
+      nextupdate=$(($nextupdate-1))
+    done
+  done
+}	# ----------  end of function recalculate  ----------
+
+
+#-------------------------------------------------------------------------------
+# Right, that's it. I want to run, be freeee
+#-------------------------------------------------------------------------------
+#- but first just make sure everything is ok obvs ------------------------------
+checkEverything $@
+startme
+resizeFrame
+#- oh and make sure we handle resizes and kill signals -------------------------
+trap resizeFrame WINCH
+trap finishme EXIT
+#- woo ok ok here we go --------------------------------------------------------
+calculate
+#-------------------------------------------------------------------------------
+# fin
+#-------------------------------------------------------------------------------
