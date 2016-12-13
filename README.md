@@ -4,7 +4,7 @@
 
 WORKtop is a Unix utility that provides a rolling display of SAS WORK and UTIL directories ordered by size. It also shows the ID of the process that owns each directory and (optionally) the SAS Metadata user responsible for the process. It aims to help Administrators of the SAS® BI Platform stay on top of temporary disk usage within their environments, thereby helping prevent the instability often caused by out-of-disk conditions.
 
-![rec](https://cloud.githubusercontent.com/assets/11962123/21123510/118e7232-c0d1-11e6-9a0f-65eb02fc51d2.gif)
+![rec](https://cloud.githubusercontent.com/assets/11962123/21123727/7094c938-c0d2-11e6-83e3-82a76d77c363.gif)
 
 The name is a portmanteau of SAS WORK and [top](http://www.unixtop.org/), a Unix utility that provides a rolling display of top cpu using processes.
 
@@ -40,7 +40,7 @@ To bring them to your attention, worktop will highlight any directories that exc
 worktop -d /data/saswork -g 25G
 ```
 
-#### Using Sudo to Check Size
+#### Sudo to Check Size
 
 If you're on a multi-user environment, your WORKPERMS setting may prevent you from being able to read (and therefore check the size of) all of the WORK and UTIL directories that are occupying disk space. If your user is part of the `sudoers` group, worktop will let you run the disk sizing command as sudo by using the `-s` switch. For example, to keep an eye on `/data/saswork` as `sudo`, run:
 
