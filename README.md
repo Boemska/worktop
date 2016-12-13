@@ -132,7 +132,7 @@ Also, the kids were away for the weekend and I rarely get to code anything inter
 
 ### Contributing
 
-This whole thing is Open Source, released under version 3 of the GPL licence. Feel free to add to it. 
+This project is licensed under version 3 of the GPL licence. Feel free to add to it. 
 
 ### Support 
 
