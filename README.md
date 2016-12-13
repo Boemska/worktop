@@ -1,10 +1,10 @@
 # WORKtop
 
-![rec](https://cloud.githubusercontent.com/assets/11962123/21123510/118e7232-c0d1-11e6-9a0f-65eb02fc51d2.gif)
-
 ## What is this?
 
 WORKtop is a Unix utility that provides a rolling display of SAS WORK and UTIL directories ordered by size. It also shows the ID of the process that owns each directory and (optionally) the SAS Metadata user responsible for the process. It aims to help Administrators of the SAS® BI Platform stay on top of temporary disk usage within their environments, thereby helping prevent the instability often caused by out-of-disk conditions.
+
+![rec](https://cloud.githubusercontent.com/assets/11962123/21123510/118e7232-c0d1-11e6-9a0f-65eb02fc51d2.gif)
 
 The name is a portmanteau of SAS WORK and [top](http://www.unixtop.org/), a Unix utility that provides a rolling display of top cpu using processes.
 
