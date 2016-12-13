@@ -96,6 +96,7 @@ printHelp() {
   printf "             [-n <directory sizing interval (seconds)>]\n" 
   printf "             [-g <alert/highlight limit (K/M/G)>] \n"
   printf "             [-i <directory where metaindex host file is located>] \n"
+  printf "             [-s (run as sudo if your user can't read all work dirs)]\n" 
   printf "             [-l <target logfile to write stuff to>]${RCol}\n\n"
   printf "Example (size every 7 minutes, highlight anything larger than 70GB): \n\n  ${Yel}$(basename "$0") -d /data/saswork -n 420 -l 70\n\n${RCol}"
 }	# ----------  end of function printHelp  ------------
@@ -126,7 +127,7 @@ checkEverything() {
     "date" "du" "sort" "readarray" "find" "basename" "cut" "xargs" "read" "echo")
   
   # check that the arguments we have are correct and stuff
-  while getopts ":d:n:l:i:g:h:s" option; do
+  while getopts ":d:n:l:i:g:hs" option; do
     case "${option}" in
     d) 
       WORKDIR=${OPTARG};;
@@ -153,7 +154,7 @@ checkEverything() {
       if [ $? == 0 ]; then
         SUDOAS=sudo
       else
-        printerror "sudoing unsuccessful :("
+        printerror "Sudoing unsuccessful :("
         printscr "\n\nThe -s argument was passed, but you failed to sudo."
         printscr "\n${Yel}worktop${RCol} will run in non-superuser mode."
         read -p "Hit Enter to continue."
@@ -367,7 +368,6 @@ function calculate {
         thisHex=$(echo "${thisDir}" | cut -d "_" -f 2 | cut -b 10-)
         thisHost=$(echo "${thisDir}" | cut -d "_" -f 3)  
         thisPid=$(( 16#${thisHex} )) 
-        echo "${thisHost}_${thisPid}" >> thisdebug
         # check meta user lookup hash
 	if [ ${lookuphash[${thisHost}_${thisPid}]+bla} ] ; then
 	  thisUser=${lookuphash[${thisHost}_${thisPid}]}
@@ -402,7 +402,6 @@ function calculate {
     printsubstatus "$timermsg" 2
     printlog "Sized in ${sizetime}ms, matched in ${theresttime}ms"
     for (( CNTR=0; CNTR<${#works[@]} && CNTR<$dirstoshow; CNTR+=1 )); do
-      # read -p "${rowShade[$CNTR]}For ${CNTR} this"
       printf "${rowShade[$CNTR]}${col1vals[$CNTR]}${CLine}${col2vals[$CNTR]}${col3vals[$CNTR]}${col4vals[$CNTR]}${col5vals[$CNTR]}${RCol}"
     done
     nextupdate=$INTERVAL
