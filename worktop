@@ -98,9 +98,9 @@ printHelp() {
   printf "             [-i <directory where metaindex host file is located>] \n"
   printf "             [-s (run as sudo if your user can't read all work dirs)]\n" 
   printf "             [-l <target logfile to write stuff to>]${RCol}\n\n"
-  printf "Example (size every 7 minutes, highlight anything larger than 70GB): \n\n  ${Yel}$(basename "$0") -d /data/saswork -n 420 -l 70\n\n${RCol}"
+  printf "Example (size every 7 minutes, highlight anything larger than 70GB): "
+  printf "\n\n  ${Yel}$(basename "$0") -d /data/saswork -n 420 -l 70\n\n${RCol}"
 }	# ----------  end of function printHelp  ------------
-
 
 #---  FUNCTION  ----------------------------------------------------------------
 #          NAME:  checkEverything
@@ -118,7 +118,7 @@ checkEverything() {
   # initialise default values for below
   WORKDIR=.
   INTERVAL=30
-  WORKLIMIT=1000000 # 1gb default
+  WORKLIMIT=1048576 # 1gb default
   LOGFILELOC=/dev/null
   SUDOAS=
 
@@ -134,14 +134,44 @@ checkEverything() {
     n) 
       INTERVAL=${OPTARG};;
     g) 
-      LIMITARG=${OPTARG}
-      LIMITMED=$(numfmt --from=si ${LIMITARG} 2>&1)
-      if [[ $? > 0 ]]; then
-        printerror "$LIMITMED."
-        printscr "Remember, -g needs SI units. Look at man numfmt maybe."
-        exit 2
-      fi
-      WORKLIMIT=$(( $LIMITMED / 1000 ));;
+       # LIMITARG=${OPTARG}
+       #     LIMITMED=$(numfmt --from=si ${LIMITARG} 2>&1)
+       #     if [[ $? > 0 ]]; then
+       #       printerror "$LIMITMED."
+       #       printscr "Remember, -g needs SI units. Look at man numfmt maybe."
+       #       exit 2
+       #     fi
+       #     # WORKLIMIT=$(( $LIMITMED / 1000 ));;
+       #     WORKLIMIT=$(
+       #     
+       #     )
+       
+       # THIS REPLACES NUMFMT... looks like coreutils only got it recently
+        local SUFFIXES=(K M G T P E Z Y)
+        local MULTIPLIER=1
+        shopt -s nocasematch
+        local MATCHED=0
+        for SUFFIX in "${SUFFIXES[@]}"; do
+            REGEX="^([0-9]+)(${SUFFIX}i?B?)?\$"
+            if [[ ${OPTARG} =~ $REGEX ]]; then
+                WORKLIMIT=$((${BASH_REMATCH[1]} * MULTIPLIER))
+                MATCHED=1
+            fi
+            ((MULTIPLIER *= 1024))
+        done
+
+        if [[ $MATCHED -eq 0 ]]; then  
+          printerror "Invalid size format ${OPTARG}" 
+          printscr "\nSome examples of valid size threshold formats:\n"
+          printscr "  worktop -g 12G"
+          printscr "  worktop -g 23TB"
+          printscr "  worktop -g 31mB"
+          printscr "\netc... you get the idea."
+          printscr "\nPlease ensure you use a valid size format."
+          exit 2
+        fi
+        shopt -u nocasematch
+        ;;
     i) 
       METAFILEDIR=${OPTARG};;
     l) 
@@ -215,7 +245,7 @@ function resizeFrame {
   tcolumns=$(tput cols)
   colpad=1
   col1pos=0
-  col2pos=$(( $col1pos + 8 ))
+  col2pos=$(( $col1pos + 10 ))
   col3pos=$(( $col2pos + 8  ))
   col4pos=$(( $col3pos + $tcolumns  / 6 ))
   col5pos=$(( $col4pos + 20 ))
@@ -228,7 +258,7 @@ function resizeFrame {
   # redraw header and column headers
   headerrow=3
   headerbg=$(tput cup ${headerrow} 0)${BgWhi}${Bla}${Bce}${CLine}
-  headertxt="$(tput cup ${headerrow} ${col1pos})  SIZE"
+  headertxt="$(tput cup ${headerrow} ${col1pos})SIZE"
   headertxt+="$(tput cup ${headerrow} ${col2pos})PID"
   headertxt+="$(tput cup ${headerrow} ${col3pos})METAUSER"
   headertxt+="$(tput cup ${headerrow} ${col4pos})HOST"
@@ -305,8 +335,28 @@ drawtopbit () {
   printmiddle "(kind of like top for SASWORK)" 1
   printmiddle "©2016 boemskats.com" 2
   printleft "${BYel}$WORKDIR${RCol} on ${BYel}$(hostname -s)${RCol}"
-  local prettyhard=$(numfmt --to=si --from=si ${WORKLIMIT}K)
-  local prettysoft=$(numfmt --to=si --from=si ${NOTQUITELIMIT}K)
+  local prettyhard=$(echo ${WORKLIMIT} | awk '{ sum=$1 ; 
+                                                hum[1024**3]="Tb";
+                                                hum[1024**2]="Gb";
+                                                hum[1024]="Mb"; 
+                                                for (x=1024**3; x>=1024; x/=1024)
+                                                  { if (sum>=x) 
+                                                    { printf "%.1f %s\n",sum/x,hum[x];break } 
+                                                  }
+                                                }
+                                              ')
+  local prettysoft=$(echo ${NOTQUITELIMIT} | awk '{ sum=$1 ; 
+                                                hum[1024**3]="Tb";
+                                                hum[1024**2]="Gb";
+                                                hum[1024]="Mb"; 
+                                                for (x=1024**3; x>=1024; x/=1024)
+                                                  { if (sum>=x) 
+                                                    { printf "%.1f %s\n",sum/x,hum[x];break } 
+                                                  }
+                                                }
+                                              ')
+#  local prettyhard=$(numfmt --to=si --from=si ${WORKLIMIT}K)
+#  local prettysoft=$(numfmt --to=si --from=si ${NOTQUITELIMIT}K)
   printleft "Highlights @ ${Red}${prettyhard}${RCol} and ${Yel}${prettysoft}${RCol} " 1
   printleft "Hit ${BGre}R${RCol} to update, ${BGre}Q${RCol} to quit" 2 
 }	# ----------  end of function drawtopbit  ----------
@@ -360,7 +410,18 @@ function calculate {
     for (( CNTR=0; CNTR<${#works[@]} && CNTR<$dirstoshow; CNTR+=1 )); do
       thisrow=$(( $CNTR + headerrow + 1 ))
       thisSize=$(echo ${works[$CNTR]} | cut -d ' ' -f 1)
-      thisPrettySize=$(numfmt --to=si --from=si --padding=6 ${thisSize}K)
+      # thisPrettySize=$(numfmt --to=si --from=si --padding=6 ${thisSize}K)
+      local thisPrettySize=$(echo ${thisSize} | 
+                             awk '{ sum=$1 ; 
+                                    hum[1024**3]="Tb";
+                                    hum[1024**2]="Gb";
+                                    hum[1024]="Mb"; 
+                                    for (x=1024**3; x>=1024; x/=1024)
+                                      { if (sum>=x) 
+                                        { printf "%.1f %s\n",sum/x,hum[x];break } 
+                                      }
+                                    }
+                                 ')
       thisDir=$(echo ${works[$CNTR]} | cut -d ' ' -f 2 | xargs basename)
       # only do this for legit saswork formatted dirs so that bash can dehex
       local dirsub="${thisDir:0:8}"
