@@ -111,7 +111,7 @@ Where `/tmp/mylog.log` is the name of the file you'd like it to write to. Workto
 
 The main thing you'll need is version 4 of **bash**, which probably means RHEL6 or later. Apart from that, the script checks that the following are available:
 
-- numfmt
+- ~~numfmt~~ (functionality replaced with bash regex)
 - tput
 - du
 - sort
@@ -126,7 +126,7 @@ Most people will be able to run this script without making any changes to their 
 
 ### Why did you write this? Doesn't ESM already do this?
 
-Yes, ESM regularly records the size of the same temporary directories and reconciles them to their owning processes/metadata users/batch jobs. However, as far as I'm aware it's also the only product that currently performs this rather crucial analysis. ESM is a comprehensive platform monitoring product that provides a whole host of other benefits, and instead of constantly recommending it to people as the sole current solution to what is essentially a very simple problem, I thought I'd spend a couple of days writing this utility. I figured that way I could litter the readme with constant references to our excellent commercial product, [Enterprise Session Monitor™ for SAS®](https://boemskats.com/esm) :).
+Yes, ESM regularly records the size of these same WORK and UTIL directories, and yes, ESM does match them to their parent process/metadata user/batch job. Infact, it would appear that, before I wrote this script, ESM was the *only* product that performed this analysis. Now, ESM took us *years* to build, it does *so much more* than just tell you which user is eating up your disk space. Constantly recommending it to people as the only solution to this relatively simple problem was starting to get uncomfortable, so I thought I'd spend a couple of days writing this utility. I figured, at least this way I could litter the readme with constant references to our excellent commercial product, [Enterprise Session Monitor™ for SAS®](https://boemskats.com/esm) :).
 
 Also, the kids were away for the weekend and I rarely get to code anything interesting any more.
 
