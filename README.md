@@ -10,13 +10,15 @@ The name is a portmanteau of SAS WORK and [top](http://www.unixtop.org/), a Unix
 
 ## How do I use it?
 
+If your SAS nodes can reach GitHub then do this:
+
 ```bash
- wget https://github.com/Boemska/worktop/blob/master/worktop
+ wget https://raw.githubusercontent.com/Boemska/worktop/master/worktop
  chmod +x worktop
  ./worktop <args>
  ```
  
- Download or clone this repository by clicking the green **Clone or Download** button above (top right). Copy `worktop` to your server(s) and `chmod +x`. It's just a bash shell script, so feel free to look through it before you run it. 
+Otherwise, download or clone this repository by clicking the green **Clone or Download** button above (top right). Copy `worktop` to your server(s) and `chmod +x`. It's just a bash shell script, so feel free to look through it before you run it. 
 
 At a minimum, you can simply copy worktop to your `saswork` directory and run it with `./worktop`. However, it works much better if you copy it to a more permanent location and then pass it some arguments:
 
