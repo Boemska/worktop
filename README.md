@@ -2,7 +2,9 @@
 
 ## What is this?
 
-WORKtop is a Unix utility that provides a rolling display of SAS WORK and UTIL directories ordered by size. It also shows the ID of the process that owns each directory and (optionally) the SAS Metadata user responsible for the process. It aims to help Administrators of the SAS® BI Platform stay on top of temporary disk usage within their environments, thereby helping prevent the instability often caused by out-of-disk conditions.
+WORKtop is a Unix utility that provides a rolling display of SAS WORK and UTIL directories ordered by size. It also shows the ID of the process that owns each directory and (optionally) the SAS Metadata user responsible for the process. It aims to help Administrators of the SAS® BI Platform stay on top of temporary disk usage within their environments, thereby helping prevent the instability often caused by out-of-disk conditions. 
+
+For original discussion visit [this thread on communities.sas.com](http://boem.sk/2hwvU8m)
 
 ![rec](https://cloud.githubusercontent.com/assets/11962123/21123727/7094c938-c0d2-11e6-83e3-82a76d77c363.gif)
 
