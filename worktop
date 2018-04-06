@@ -109,12 +109,6 @@ printHelp() {
 #       RETURNS:  Doesn't exit if everything is ok
 #-------------------------------------------------------------------------------
 checkEverything() {
-  # first off we need bash v4 for some of this stuff 
-  if ((BASH_VERSINFO[0] < 4)); then 
-    echo "Sorry, you need at least bash-4.0 to run this script." 
-    exit 1
-  fi
-
   # initialise default values for below
   WORKDIR=.
   INTERVAL=30
@@ -124,7 +118,7 @@ checkEverything() {
 
   # commands to check for 
   requiredThings=("tput" "date" "man" "getopts" "basename" "hostname" 
-    "date" "du" "sort" "readarray" "find" "basename" "cut" "xargs" "read" "echo")
+    "date" "du" "sort" "find" "basename" "cut" "xargs" "read" "echo")
   
   # check that the arguments we have are correct and stuff
   while getopts ":d:n:l:i:g:hs" option; do
@@ -368,6 +362,7 @@ drawtopbit () {
 #                 (runs du, matches dirs, draws on screen)
 #    PARAMETERS:  n/a
 #-------------------------------------------------------------------------------
+
 function calculate {
     printlog "Starting periodic sizing..."
   # offset=1
@@ -380,7 +375,11 @@ function calculate {
     printstatus "sizing directory" "${BgRed}"
 
     # basically the entire script right here  
-    readarray -t works < <($SUDOAS du -k --max-depth=0 $WORKDIR/*/ 2>/dev/null | sort -n -r)
+    let i=0
+    while  IFS=$'\n' read -r line ; do
+       works[i]="$line"
+       ((++i))
+    done < <($SUDOAS du -k --max-depth=0 $WORKDIR/*/ 2>/dev/null | sort -n -r)
     
     timerend=$(date +%s%3N)
     sizetime=$(( $timerend - $timerstart ))
@@ -391,17 +390,21 @@ function calculate {
 
     # load any metaindexes that may exist
     unset lookuphash
-    declare -A lookuphash
     if [ $(find $METAFILEDIR/workmeta* 2>/dev/null | wc -l) -gt 0 ]; then 
       for metafile in $METAFILEDIR/workmeta*; do
-        readarray raw < $metafile
+        let i=0
+        while  IFS=$'\n' read -r line ; do
+           raw[i]="$line\n"
+           ((++i))
+        done < $metafile
         fileshort=$(basename $metafile)
         nodename=${fileshort:9:99}
-        for sesh in "${raw[@]}"; do
-          line=( $sesh )
-          thispid=${line[0]}
-          thisuser=${line[1]}
-          lookuphash[${nodename}_${thispid}]="${thisuser}"
+	for (( CNTR=0; CNTR<${#raw[@]} ; CNTR+=1 )); do
+          line=${raw[$CNTR]}
+          thisPid=${line% *}
+          thisuser=${line#* }
+          # removes - from hostname otherwise the variable assigment fails
+          declare lookuphash__${nodename/-/}_${thisPid}="${thisuser}"
         done
       done
     fi
@@ -430,8 +433,9 @@ function calculate {
         thisHost=$(echo "${thisDir}" | cut -d "_" -f 3)  
         thisPid=$(( 16#${thisHex} )) 
         # check meta user lookup hash
-	if [ ${lookuphash[${thisHost}_${thisPid}]+bla} ] ; then
-	  thisUser=${lookuphash[${thisHost}_${thisPid}]}
+        var=lookuphash__${thisHost/-/}_${thisPid}
+	if [ -n "${!var}" ] ; then
+	  thisUser="${!var}"
         else 
           thisUser="-"
 	fi
