@@ -119,7 +119,7 @@ Where `/tmp/mylog.log` is the name of the file you'd like it to write to. Workto
 
 ## What do I need in order to run worktop?
 
-The main thing you'll need is version 4 of **bash**, which probably means RHEL6 or later. Apart from that, the script checks that the following are available:
+The main thing you'll need is ~~version 4 of~~ **bash**, ~~which probably means RHEL6 or later~~ (bash v4 no longer required [thanks to @thobianchi](https://github.com/Boemska/worktop/pull/4)). Apart from that, the script checks that the following are available:
 
 - ~~numfmt~~ (functionality replaced with bash regex)
 - tput
