@@ -54,6 +54,10 @@ RCol=$(tput sgr0)
 CLine=$(tput el)
 CDim=$(tput dim)
 Bce=$(tput bce)
+URed=$(tput smul)$(tput setaf 1)
+UGre=$(tput smul)$(tput setaf 2)
+UYel=$(tput smul)$(tput setaf 3)
+UWhi=$(tput smul)$(tput setaf 7)
 
 
 #---  FUNCTIONS  ---------------------------------------------------------------
@@ -369,8 +373,8 @@ function calculate {
   # keep doing this for ever and ever
   while true ; do
     # variable cleardown and reinit
-    unset rowShade col1vals col2vals col3vals col4vals col5vals timermsg
-    declare -a rowShade col1vals col2vals col3vals col4vals col5vals
+    unset rowShade col1vals col2vals col3vals col4vals col5vals timermsg active
+    declare -a rowShade col1vals col2vals col3vals col4vals col5vals active
     timerstart=$(date +%s%3N)
     printstatus "sizing directory" "${BgRed}"
 
@@ -430,7 +434,6 @@ function calculate {
       local dirsub="${thisDir:0:8}"
       if [[ "${dirsub}" == "SAS_work" || "${dirsub}" == "SAS_util" ]] ; then 
         thisHex=$(echo "${thisDir}" | cut -d "_" -f 2 | cut -b 10-)
-        # swap the _ back to . for FQDN hosts
         thisHost=$(echo "${thisDir}" | cut -d "_" -f 3 | tr . _ )  
         thisPid=$(( 16#${thisHex} )) 
         # check meta user lookup hash
@@ -446,13 +449,28 @@ function calculate {
         thisPid="-"
         thisUser="-"
       fi
+
+      #check if the pid is active. 0 = alive on host
+      ps -p $thisPid 2>&1 >/dev/null
+      active=$?
+
       # apply highlighting
-      if [[ ${thisSize} -ge $WORKLIMIT ]] ; then
-        rowShade[$CNTR]="${Red}"
-      elif [[ ${thisSize} -ge $NOTQUITELIMIT ]] ; then
-        rowShade[$CNTR]="${Yel}"
+      if [[ $active == 0 ]]; then
+        if [[ ${thisSize} -ge $WORKLIMIT ]] ; then
+          rowShade[$CNTR]="${Red}"
+        elif [[ ${thisSize} -ge $NOTQUITELIMIT ]] ; then
+          rowShade[$CNTR]="${Yel}"
+        else
+          rowShade[$CNTR]="${RCol}"
+        fi
       else
-        rowShade[$CNTR]="${RCol}"
+        if [[ ${thisSize} -ge $WORKLIMIT ]] ; then
+          rowShade[$CNTR]="${URed}"
+        elif [[ ${thisSize} -ge $NOTQUITELIMIT ]] ; then
+          rowShade[$CNTR]="${UYel}"
+        else
+          rowShade[$CNTR]="${UWhi}"
+        fi
       fi
 
       col1vals[$CNTR]="$(tput cup ${thisrow} ${col1pos})${thisPrettySize:0:${col1len}}"
