@@ -435,6 +435,8 @@ function calculate {
         thisPid=$(( 16#${thisHex} )) 
         # check meta user lookup hash
         var=lookuphash__${thisHost/-/}_${thisPid}
+        # swap the _ back to . for FQDN hosts for display purposes
+        thisHost=$(echo "${thisHost}" | tr _ .)        
 	if [ -n "${!var}" ] ; then
 	  thisUser="${!var}"
         else 
