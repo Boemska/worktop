@@ -389,7 +389,6 @@ function calculate {
     printstatus "calculating" "${BgYel}"
 
     # load any metaindexes that may exist
-    unset lookuphash
     if [ $(find $METAFILEDIR/workmeta* 2>/dev/null | wc -l) -gt 0 ]; then 
       for metafile in $METAFILEDIR/workmeta*; do
         let i=0
