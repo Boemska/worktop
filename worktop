@@ -118,7 +118,7 @@ checkEverything() {
 
   # commands to check for 
   requiredThings=("tput" "date" "man" "getopts" "basename" "hostname" 
-    "date" "du" "sort" "find" "basename" "cut" "xargs" "read" "echo")
+    "date" "du" "sort" "find" "basename" "cut" "xargs" "read" "echo" "tr")
   
   # check that the arguments we have are correct and stuff
   while getopts ":d:n:l:i:g:hs" option; do
@@ -397,11 +397,12 @@ function calculate {
            ((++i))
         done < $metafile
         fileshort=$(basename $metafile)
-        nodename=${fileshort:9:99}
-	for (( CNTR=0; CNTR<${#raw[@]} ; CNTR+=1 )); do
-          line=${raw[$CNTR]}
+        nodename=$(echo ${fileshort:9:99} |  tr . _ )
+	      for (( CNTR=0; CNTR<${#raw[@]} ; CNTR+=1 )); do
+          # strip new line character from the string as we assign to $line
+          line=${raw[$CNTR]%'\n'}
           thisPid=${line% *}
-          thisuser=${line#* }
+          thisuser=${line#$thisPid }
           # removes - from hostname otherwise the variable assigment fails
           declare lookuphash__${nodename/-/}_${thisPid}="${thisuser}"
         done
@@ -429,7 +430,8 @@ function calculate {
       local dirsub="${thisDir:0:8}"
       if [[ "${dirsub}" == "SAS_work" || "${dirsub}" == "SAS_util" ]] ; then 
         thisHex=$(echo "${thisDir}" | cut -d "_" -f 2 | cut -b 10-)
-        thisHost=$(echo "${thisDir}" | cut -d "_" -f 3)  
+        # swap the _ back to . for FQDN hosts
+        thisHost=$(echo "${thisDir}" | cut -d "_" -f 3 | tr . _ )  
         thisPid=$(( 16#${thisHex} )) 
         # check meta user lookup hash
         var=lookuphash__${thisHost/-/}_${thisPid}
